@@ -1,6 +1,6 @@
 # CerevisiAnnotate
 
-CerevisiAnnotate is a Python script that refines Transdecoder pan-transcriptome annotations using a rule-based approach. It processes FASTA files containing Transdecoder outputs, performs UniProt queries, and conducts BLAST searches against a Saccharomyces cerevisiae S288C database to provide comprehensive annotations.
+CerevisiAnnotate is a Python script that refines Transdecoder pan-transcriptome annotations using a rule-based approach. It processes FASTA files containing Transdecoder outputs, performs UniProt queries, and conducts BLAST searches against a Saccharomyces cerevisiae S288C database to provide comprehensive annotations. It was originally designed for annotation of a Saccharomyces pan-transcriptome, but can with minor edits be applied to other systems as well.
 
 CerevisiAnnotate was originally designed as part of a project to streamline Transdecoder annotation, assigning one gene name to one gene-level annotation (as defined by Transdecoder clustering). CerevisiAnnotate outputs metadata in a tabulated format to provide full traceability and transparency on how gene annotation is performed.
 
