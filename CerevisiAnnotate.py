@@ -1,7 +1,7 @@
 # Refines Transdecoder pan-transcriptome annotations using a rule-based approach
 
 # Written 24 June 2022
-# Updated 04 March 2022
+# Updated 31 August 2024
 # Written by Patrick Rynkiewicz
 # License: GNU GPLv3
 
@@ -185,146 +185,42 @@ def pull_fasta_info(fasta_file):
 Collapses alternative gene annotations from a list into one representative
 
 Inputs:
-protein list 
+protein_list 
     - list of Transdecoder_Record objects associated with a gene
 
 Outputs:
-output metadata
+output_metadata
     - list containing
         - number of alternative protein annotations for the gene
         - number of votes (counts for the annotation)
         - number of votes for alternative annotations
 protein_record
     - Transdecoder_Record object representing the best annotation for the gene
-
 """
-
 
 def choose_representative_protein(protein_list):
     annotations = {}
-    # Assemble annotations dictionary of {uniref : [scores]}
     for protein in protein_list:
-        if protein.uniref not in annotations:
-            annotations[protein.uniref] = [float(protein.score)]
-        elif protein.uniref in annotations:
-            score_list = annotations[protein.uniref]
-            score_list.append(float(protein.score))
-            annotations[protein.uniref] = score_list
-    # One annotation present more than once. Return best.
+        annotations.setdefault(protein.uniref, []).append(float(protein.score))
+    
     if len(annotations) == 1:
-        for item in annotations:
-            uniprot_id = item
-            best_score = max(annotations[item])
-            num_alt = 0
-            num_votes = len(annotations)
-            num_alt_votes = 0
-            output_metadata = [num_alt, num_votes, num_alt_votes]
-            for protein_record in protein_list:
-                if protein_record.uniref == uniprot_id \
-                        and protein_record.score == str(format(best_score, ".2f")):
-                    return(output_metadata, protein_record)
-    # More than one competing annotation
-    elif len(annotations) > 1:
-        # First and second best annotations found
-        first = {}
-        first_ref = ""
-        second = {}
-        second_ref = ""
-        for uniref in annotations:
-            # Retrieve annotation score list for this potential annotation
-            score_list = annotations[uniref]
-            # 1) No indicated most common annotation yet, automatically promote
-            if len(first) == 0:
-                first = {uniref: score_list}
-                first_ref = uniref
-            # 2) Length of score list is longer than best annotation, replace
-            elif len(score_list) > len(first[first_ref]):
-                # 2.1) No second, move first to second.
-                if len(second) == 0:
-                    second.clear()
-                    second = {first_ref: first[first_ref]}
-                    second_ref = first_ref
-                # 2.2) First is longer than second, swap
-                elif len(first[first_ref]) > len(second[second_ref]):
-                    second.clear()
-                    second = {first_ref: first[first_ref]}
-                    second_ref = first_ref
-                # 2.3) Current first is better than current second but has same length, swap
-                elif len(first[first_ref]) == len(second[second_ref]) and mean(first[first_ref]) > mean(second[second_ref]):
-                    second.clear()
-                    second = {first_ref: first[first_ref]}
-                    second_ref = first_ref
-                first.clear()
-                first = {uniref: score_list}
-                first_ref = uniref
-            # 3) Same length as first but better score, make first
-            elif len(score_list) == len(first[first_ref]) and mean(score_list) > mean(first[first_ref]):
-                # 3.1) No second, move first to second.
-                if len(second) == 0:
-                    second.clear()
-                    second = {first_ref: first[first_ref]}
-                    second_ref = first_ref
-                # 3.2) First is longer than second, swap
-                elif len(first[first_ref]) > len(second[second_ref]):
-                    second.clear()
-                    second = {first_ref: first[first_ref]}
-                    second_ref = first_ref
-                # 3.3) Current first is better than current second but has same length, swap
-                elif len(first[first_ref]) == len(second[second_ref]) and mean(first[first_ref]) > mean(second[second_ref]):
-                    second.clear()
-                    second = {first_ref: first[first_ref]}
-                    second_ref = first_ref
-                first.clear()
-                first = {uniref: score_list}
-                first_ref = uniref
-            # 4) Length of score list is shorter than best annotation, but no second exists, so make it second
-            elif len(score_list) <= len(first[first_ref]) and len(second) == 0:
-                second = {uniref: score_list}
-                second_ref = uniref
-            # 5) Length of score list is shorter than best annotation, but longer than second annotation. replace second.
-            elif len(score_list) < len(first[first_ref]) and len(score_list) > len(second[second_ref]):
-                second.clear()
-                second = {uniref: score_list}
-                second_ref = uniref
-            # 6) Length of score list is the same as best annotation, and average score is better. replace best annotation
-            elif len(score_list) == len(first[first_ref]) and mean(score_list) > mean(first[first_ref]):
-                first.clear()
-                first = {uniref: score_list}
-                first_ref = uniref
-            # 7) Length of score list is shorter than best annotation, but the same as second annotation.
-            #    If average score is better, replace second annotation
-            elif len(score_list) == len(second[second_ref]) and mean(score_list) > mean(second[second_ref]):
-                second.clear()
-                second = {uniref: score_list}
-                second_ref = uniref
-            # 8) Length of score list is longer than second best annotation, replace
-            elif len(score_list) > len(second[second_ref]):
-                second.clear()
-                second = {uniref: score_list}
-                second_ref = uniref
-        overall_best = {}
-        overall_best_ref = ""
-        num_alt_votes = 0
-        # If second ref has a better average annotation score but is one record shorter, make it the best.
-        # Otherwise make first the best
-        if mean(second[second_ref]) > mean(first[first_ref]) and (len(first[first_ref]) - 1) == len(second[second_ref]):
-            overall_best = second
-            overall_best_ref = second_ref
-            num_alt_votes = len(first[first_ref])
-        else:
-            overall_best = first
-            overall_best_ref = first_ref
-            num_alt_votes = len(second[second_ref])
-        # Assemble metadata
-        num_alt = len(annotations) - 1
-        num_votes = len(overall_best[overall_best_ref])
-        best_score = max(overall_best[overall_best_ref])
-        output_metadata = [num_alt, num_votes, num_alt_votes]
-        # Output record
-        for protein_record in protein_list:
-            if protein_record.uniref == overall_best_ref \
-                    and protein_record.score == str(format(best_score, ".2f")):
-                return(output_metadata, protein_record)
+        uniref_id, scores = next(iter(annotations.items()))
+        best_score = max(scores)
+        output_metadata = [0, len(scores), 0]
+        return output_metadata, next(p for p in protein_list if p.uniref == uniref_id and float(p.score) == best_score)
+    
+    sorted_annotations = sorted(annotations.items(), key=lambda x: (-len(x[1]), -sum(x[1])/len(x[1])))
+    best_uniref, best_scores = sorted_annotations[0]
+    second_best_scores = sorted_annotations[1][1] if len(sorted_annotations) > 1 else []
+    
+    num_alt = len(annotations) - 1
+    num_votes = len(best_scores)
+    num_alt_votes = len(second_best_scores)
+    
+    output_metadata = [num_alt, num_votes, num_alt_votes]
+    best_score = max(best_scores)
+    
+    return output_metadata, next(p for p in protein_list if p.uniref == best_uniref and float(p.score) == best_score)
 
 
 """
